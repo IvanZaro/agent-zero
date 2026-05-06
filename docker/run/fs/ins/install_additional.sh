@@ -154,5 +154,7 @@ npm pack "@steipete/claude-code-mcp@${CLAUDE_CODE_MCP_VERSION}"
 tar -xzf steipete-claude-code-mcp-*.tgz -C /opt/mcp/claude-code-mcp --strip-components=1
 rm -f steipete-claude-code-mcp-*.tgz
 cd /opt/mcp/claude-code-mcp
-npm ci --omit=dev
+# Use `npm install` (not `npm ci`) because published tarballs do not include
+# package-lock.json. --omit=dev keeps prod-only deps.
+npm install --omit=dev --no-audit --no-fund
 # === end Claude Code MCP install =============================================
