@@ -47,8 +47,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/IvanZaro/agent-zero:${{ steps.meta.outputs.tag }}
-            ghcr.io/IvanZaro/agent-zero:latest
+            ghcr.io/ivanzaro/agent-zero:${{ steps.meta.outputs.tag }}
+            ghcr.io/ivanzaro/agent-zero:latest
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 

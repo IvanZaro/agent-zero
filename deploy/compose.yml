@@ -6,7 +6,7 @@
 
 services:
   agent-zero:
-    image: ghcr.io/IvanZaro/agent-zero:${IMAGE_TAG:-latest}
+    image: ghcr.io/ivanzaro/agent-zero:${IMAGE_TAG:-latest}
     container_name: agent-zero
     restart: unless-stopped
     env_file: ./.env
@@ -67,7 +67,7 @@ services:
       - ./vault:/var/syncthing/Vault
 
   reindex_watcher:
-    image: ghcr.io/IvanZaro/agent-zero:${IMAGE_TAG:-latest}
+    image: ghcr.io/ivanzaro/agent-zero:${IMAGE_TAG:-latest}
     container_name: reindex_watcher
     restart: unless-stopped
     entrypoint: ["/bin/bash", "/scripts/reindex_watcher.sh"]
