@@ -42,10 +42,16 @@ jobs:
 
       - uses: docker/build-push-action@v5
         with:
-          context: .
+          # Build context = docker/run/ because Dockerfile uses `COPY ./fs/ /`
+          # expecting fs/ to be a sibling of the Dockerfile.
+          context: docker/run
           file: docker/run/Dockerfile
           platforms: linux/amd64
           push: true
+          # BRANCH is required by Dockerfile (gates install_A0.sh clone).
+          # GITHUB_REF_NAME is the branch on push events.
+          build-args: |
+            BRANCH=${{ github.ref_name }}
           tags: |
             ghcr.io/ivanzaro/agent-zero:${{ steps.meta.outputs.tag }}
             ghcr.io/ivanzaro/agent-zero:latest
