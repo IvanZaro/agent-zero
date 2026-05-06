@@ -74,25 +74,28 @@ jobs:
             cd /opt/agent-zero
             sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${{ needs.build.outputs.tag }}|" .env
             docker compose pull agent-zero
-            # `up -d --no-deps` recreates the agent-zero service against the new
-            # image tag. If the pull above failed, IMAGE_TAG points at an unknown
-            # image and `up` will error out, leaving the previous container running.
-            # Rollback is manual: re-run this workflow with an older tag, or SSH in
-            # and set IMAGE_TAG=main-<old-sha> in .env then `docker compose up -d`.
-            docker compose up -d --no-deps agent-zero
+            # `up -d` is idempotent: brings up missing services on first deploy,
+            # recreates only services whose config/image changed on hot updates.
+            # Rollback: SSH in, set IMAGE_TAG=main-<old-sha> in .env, run `up -d`.
+            docker compose up -d
 
-            # Healthcheck loop: cold-start can take >5s, so retry 6x at 5s intervals.
+            # Use Docker's container healthcheck (already targets /api/health) instead
+            # of curl-from-host. More reliable: doesn't depend on Caddy cert state and
+            # tolerates the LE issuance window on first deploy.
             ok=0
-            for i in 1 2 3 4 5 6; do
-              if curl -fsS -k https://localhost/api/health >/dev/null; then
-                echo "healthcheck ok (attempt $i)"
+            for i in $(seq 1 18); do
+              health=$(docker inspect agent-zero --format '{{.State.Health.Status}}' 2>/dev/null || echo missing)
+              if [ "$health" = "healthy" ]; then
+                echo "agent-zero healthy after attempt $i"
                 ok=1
                 break
               fi
-              echo "healthcheck attempt $i failed, retrying in 5s..."
-              sleep 5
+              echo "attempt $i: agent-zero=$health (waiting 10s)"
+              sleep 10
             done
             if [ "$ok" -ne 1 ]; then
-              echo "HEALTHCHECK FAIL after 6 attempts"
+              echo "HEALTHCHECK FAIL after 18 attempts (~3 min)"
+              docker compose ps
+              docker logs --tail 50 agent-zero
               exit 1
             fi
