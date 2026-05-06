@@ -60,8 +60,10 @@ services:
     # to public Syncthing traffic. Sync runs over the Tailnet only (plan §6).
     network_mode: host
     environment:
-      PUID: "1000"
-      PGID: "1000"
+      # Match the `ivan` host user (uid 1001) so bind-mount permissions work.
+      # If host user changes, update PUID/PGID and chown /opt/agent-zero/syncthing.
+      PUID: "1001"
+      PGID: "1001"
     volumes:
       - ./syncthing/config:/var/syncthing/config
       - ./vault:/var/syncthing/Vault
