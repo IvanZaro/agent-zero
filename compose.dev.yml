@@ -1,0 +1,42 @@
+# Local dev only. Bind-mounts /a0 (NOT for prod). Prod uses deploy/compose.yml.
+# Hot-reload Win11 dev environment for Agent-Zero per plan §4.
+
+services:
+  agent-zero-dev:
+    # First-boot: upstream image (works because /a0 is bind-mounted from the fork).
+    # After your fork's GH Actions has pushed to GHCR, switch to:
+    #   image: ghcr.io/<your-gh-user>/agent-zero:latest
+    # The fork-only goodies (Claude Code MCP install) live at /opt/mcp/, which is
+    # NOT under /a0, so they only become available once you build your own image.
+    image: agent0ai/agent-zero:latest
+    container_name: a0-dev
+    ports:
+      - "7777:80"
+    env_file: ./.env.local
+    volumes:
+      # Hot-reload: mount the cloned fork over /a0 inside the image.
+      - .:/a0
+      # Local A0 user data (chats, settings, FAISS index) — kept separate from /a0.
+      - ./usr-dev:/a0/usr
+      # Vault bind-mount (RW). Same path A0 expects for the "main" knowledge subdir.
+      - C:/Users/iroza/Desktop/VAULT:/a0/usr/knowledge/main/vault
+      # Reuse the host Claude CLI login inside the container.
+      - ${USERPROFILE}/.claude:/root/.claude
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+      - NET_BIND_SERVICE
+    security_opt:
+      - "no-new-privileges:true"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:80/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s

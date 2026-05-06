@@ -42,6 +42,18 @@ usr/**/*
 !usr/**/.gitkeep
 
 
+# Local dev (Phase A) — never commit
+.env.local
+.env.local.bak
+usr-dev/
+
+# Sibling repos / unrelated projects in this folder
+moon-dev-ai-agents/
+moon-dev-trading-bots/
+
+# IDE / editor
+.vscode/
+
 # Global rule to include .gitkeep files anywhere
 !**/.gitkeep
 

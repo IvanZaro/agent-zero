@@ -1,0 +1,81 @@
+# Production VPS stack for Agent-Zero. See plan §5.
+# Run from /opt/agent-zero on VPS host.
+#
+# Watchtower was rejected (plan §13) — deploys happen via GitHub Actions
+# SSH-deploy (plan §3), so no `com.centurylinklabs.watchtower.*` labels here.
+
+services:
+  agent-zero:
+    image: ghcr.io/IvanZaro/agent-zero:${IMAGE_TAG:-latest}
+    container_name: agent-zero
+    restart: unless-stopped
+    env_file: ./.env
+    volumes:
+      - ./usr:/a0/usr
+      # Vault is RW (plan §6): A0 may write FAISS index sidecars under here.
+      - ./vault:/a0/usr/knowledge/main/vault
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:80/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+      - NET_BIND_SERVICE
+    security_opt:
+      - "no-new-privileges:true"
+    depends_on:
+      - caddy
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/data:/data
+      - ./caddy/config:/config
+    # NOTE: stock caddy:2-alpine does NOT include the rate-limit plugin.
+    # See deploy/caddy/Caddyfile header for the xcaddy build instructions
+    # if you keep the rate_limit block.
+
+  syncthing:
+    image: syncthing/syncthing:latest
+    container_name: syncthing
+    restart: unless-stopped
+    # network_mode: host so Syncthing binds to the Tailscale interface on the
+    # VPS. With host networking we do NOT publish ports; UFW stays closed
+    # to public Syncthing traffic. Sync runs over the Tailnet only (plan §6).
+    network_mode: host
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+    volumes:
+      - ./syncthing/config:/var/syncthing/config
+      - ./vault:/var/syncthing/Vault
+
+  reindex_watcher:
+    image: ghcr.io/IvanZaro/agent-zero:${IMAGE_TAG:-latest}
+    container_name: reindex_watcher
+    restart: unless-stopped
+    entrypoint: ["/bin/bash", "/scripts/reindex_watcher.sh"]
+    # Same .env as agent-zero so REINDEX_SECRET matches on both ends
+    # (api/knowledge_reindex.py compares X-Reindex-Secret header to env).
+    env_file: ./.env
+    volumes:
+      - ./vault:/watch:ro
+      - ./scripts:/scripts:ro
+    depends_on:
+      - agent-zero
