@@ -14,10 +14,13 @@ services:
       - ./usr:/a0/usr
       # Vault is RW (plan §6): A0 may write FAISS index sidecars under here.
       - ./vault:/a0/usr/knowledge/main/vault
-      # Claude Code OAuth credentials. Same host dir as /a0/usr/.claude but also
-      # bound at /root/.claude so the bundled `claude` CLI finds it on $HOME.
-      # Refresh tokens auto-renew and persist to host.
+      # Claude Code OAuth credentials. Same host dir mounted at TWO container
+      # paths: /root/.claude (for `docker exec ... claude ...`) and
+      # /home/mcp/.claude (for the MCP wrapper which drops to user `mcp`,
+      # baked at uid 1099 in install_additional.sh). Single source of truth on
+      # host so refresh tokens written by either user persist consistently.
       - ./usr/.claude:/root/.claude
+      - ./usr/.claude:/home/mcp/.claude
     expose:
       - "80"
     healthcheck:

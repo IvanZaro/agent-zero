@@ -157,4 +157,24 @@ cd /opt/mcp/claude-code-mcp
 # Use `npm install` (not `npm ci`) because published tarballs do not include
 # package-lock.json. --omit=dev keeps prod-only deps.
 npm install --omit=dev --no-audit --no-fund
+
+# Non-root user for invoking the Claude CLI. The CLI refuses
+# --dangerously-skip-permissions (which the steipete MCP wrapper passes) when
+# running as root. uid 1099 picked to avoid collision with host user (1001=ivan).
+# /home/mcp/.claude is the bind-mount target for the OAuth credentials.
+if ! id mcp >/dev/null 2>&1; then
+  useradd -u 1099 -m -s /bin/bash mcp
+fi
+mkdir -p /home/mcp/.claude
+chown -R mcp:mcp /home/mcp
+
+# Wrapper script: A0's MCP config invokes this; it drops privileges to mcp
+# before exec'ing the steipete claude-code-mcp Node server. The MCP server in
+# turn spawns `claude --dangerously-skip-permissions` which now runs non-root.
+cat > /usr/local/bin/claude-mcp-server <<'WRAPPER'
+#!/bin/bash
+set -e
+exec runuser -u mcp -- node /opt/mcp/claude-code-mcp/dist/server.js "$@"
+WRAPPER
+chmod +x /usr/local/bin/claude-mcp-server
 # === end Claude Code MCP install =============================================
