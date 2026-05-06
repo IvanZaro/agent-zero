@@ -49,9 +49,11 @@ jobs:
           platforms: linux/amd64
           push: true
           # BRANCH is required by Dockerfile (gates install_A0.sh clone).
-          # GITHUB_REF_NAME is the branch on push events.
+          # CACHE_DATE invalidates install_A02.sh which deletes /git/agent-zero
+          # and re-clones — needed so new fork commits land in the image.
           build-args: |
             BRANCH=${{ github.ref_name }}
+            CACHE_DATE=${{ github.sha }}
           tags: |
             ghcr.io/ivanzaro/agent-zero:${{ steps.meta.outputs.tag }}
             ghcr.io/ivanzaro/agent-zero:latest
