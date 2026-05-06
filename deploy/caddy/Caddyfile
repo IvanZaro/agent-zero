@@ -1,38 +1,18 @@
-# ----------------------------------------------------------------------------
 # Caddy config for Agent-Zero VPS. See plan §5 / §9.
 #
-# IMPORTANT: the `rate_limit` directive below requires the
-#   github.com/mholt/caddy-ratelimit
-# plugin, which is NOT shipped in the stock `caddy:2-alpine` image.
+# Stock `caddy:2-alpine` is used. The optional `rate_limit` directive (plan §9)
+# requires github.com/mholt/caddy-ratelimit via xcaddy. To enable later:
+#   FROM caddy:2-builder-alpine AS b
+#   RUN xcaddy build --with github.com/mholt/caddy-ratelimit
+#   FROM caddy:2-alpine
+#   COPY --from=b /usr/bin/caddy /usr/bin/caddy
+# Then add a @login matcher + rate_limit block below.
 #
-# Two options:
-#   (a) PREFERRED (plan §9). Build a custom Caddy image with xcaddy:
-#         FROM caddy:2-builder-alpine AS builder
-#         RUN xcaddy build --with github.com/mholt/caddy-ratelimit
-#         FROM caddy:2-alpine
-#         COPY --from=builder /usr/bin/caddy /usr/bin/caddy
-#       Then change `image: caddy:2-alpine` -> your custom image in compose.yml.
-#
-#   (b) Remove the @login matcher and `rate_limit` block below. Agent-Zero's
-#       built-in basic auth (helpers/login.py) is then the only login defense.
-#       Acceptable as a stopgap, but plan §9 calls (a) correct.
-#
-# Substitute the literal `alfredon.cloud` token below with Ivan's real domain
-# (e.g. `a0.ivanzaro.com`). The site block label MUST match the DNS A record
-# pointing to the VPS public IP, and matches the value used for AUTOMATIC HTTPS.
-# ----------------------------------------------------------------------------
+# Auto-HTTPS via Let's Encrypt requires:
+#  - DNS A record `a0.alfredon.cloud` -> VPS public IP (Cloudflare DNS-only mode)
+#  - Inbound 80/443 open on UFW (challenge response)
 
 a0.alfredon.cloud {
     encode zstd gzip
-
     reverse_proxy agent-zero:80
-
-    @login path /login
-    rate_limit @login {
-        zone login_zone {
-            key    {remote_host}
-            events 5
-            window 1m
-        }
-    }
 }
