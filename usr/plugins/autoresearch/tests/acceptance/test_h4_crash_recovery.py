@@ -92,13 +92,14 @@ class AlwaysMalformedCoder:
 
 
 @pytest.mark.asyncio
-async def test_h4_coder_failed_loop_advances(tmp_path: Path) -> None:
+async def test_h4_coder_failed_loop_advances(tmp_path: Path, mock_passing_baseline) -> None:
     program_md, baseline_sha = _setup_h4_repo(tmp_path)
 
     from usr.plugins.autoresearch.worker.cost_meter import CostMeter
     meter = CostMeter(cap_usd=Decimal("5.00"), rates={})
 
-    with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path):
+    with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path), \
+         mock_passing_baseline:
         state = await run_loop(
             run_id="h4-test-001",
             program_md_path=program_md,

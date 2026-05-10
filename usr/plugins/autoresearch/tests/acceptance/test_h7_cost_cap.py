@@ -129,14 +129,15 @@ class _BudgetBustingCoder:
 
 
 @pytest.mark.acceptance
-def test_h7_cost_cap_exits_with_status_cost_capped(tmp_path: Path):
+def test_h7_cost_cap_exits_with_status_cost_capped(tmp_path: Path, mock_passing_baseline):
     """Loop must exit with status='cost_capped' when budget is exceeded."""
     program_md, _ = _setup_repo(tmp_path)
     meter = CostMeter(cap_usd=_CAP_USD, rates=_TEST_RATES)
     coder = _BudgetBustingCoder(meter)
 
     async def _run():
-        with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path):
+        with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path), \
+             mock_passing_baseline:
             return await run_loop(
                 run_id="h7-cap-001",
                 program_md_path=program_md,
@@ -178,7 +179,7 @@ def test_h7_cost_cap_at_most_one_experiment(tmp_path: Path):
 
 
 @pytest.mark.acceptance
-def test_h7_branch_head_equals_baseline_after_cost_cap(tmp_path: Path):
+def test_h7_branch_head_equals_baseline_after_cost_cap(tmp_path: Path, mock_passing_baseline):
     """Branch HEAD must equal baseline_sha after cost_capped (revert happened)."""
     program_md, baseline_sha = _setup_repo(tmp_path)
     meter = CostMeter(cap_usd=_CAP_USD, rates=_TEST_RATES)
@@ -186,7 +187,8 @@ def test_h7_branch_head_equals_baseline_after_cost_cap(tmp_path: Path):
     run_id = "h7-revert-001"
 
     async def _run():
-        with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path):
+        with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path), \
+             mock_passing_baseline:
             return await run_loop(
                 run_id=run_id,
                 program_md_path=program_md,
@@ -218,14 +220,15 @@ def test_h7_budget_meter_raises_on_explicit_tick():
 
 
 @pytest.mark.acceptance
-def test_h7_subsequent_experiments_not_attempted(tmp_path: Path):
+def test_h7_subsequent_experiments_not_attempted(tmp_path: Path, mock_passing_baseline):
     """After cost_capped, experiment count must be ≤ 1 (subsequent ones NOT attempted)."""
     program_md, _ = _setup_repo(tmp_path)
     meter = CostMeter(cap_usd=_CAP_USD, rates=_TEST_RATES)
     coder = _BudgetBustingCoder(meter)
 
     async def _run():
-        with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path):
+        with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path), \
+             mock_passing_baseline:
             return await run_loop(
                 run_id="h7-subsequent-001",
                 program_md_path=program_md,

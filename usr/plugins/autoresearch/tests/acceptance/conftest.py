@@ -158,6 +158,29 @@ def mock_litellm_coder():
 
 
 @pytest.fixture
+def mock_passing_baseline():
+    """
+    Opt-in fixture: patches _run_baseline_eval to return a usable baseline
+    (all tasks passed) so the loop does not abort on broken-auth environments.
+
+    NOT autouse — H2 tests need the real baseline eval path; do not apply
+    this fixture to those tests.
+
+    Usage:
+        async def test_foo(tmp_path, mock_passing_baseline):
+            with mock_passing_baseline:
+                state = await run_loop(...)
+    """
+    from unittest.mock import patch, AsyncMock
+
+    baseline = _make_eval(passed=1, total=1, tokens=100)
+    return patch(
+        "usr.plugins.autoresearch.worker.loop._run_baseline_eval",
+        new=AsyncMock(return_value=baseline),
+    )
+
+
+@pytest.fixture
 def mock_claude_subprocess(monkeypatch):
     """
     Patches subprocess.run so ClaudeCodeCoder never invokes real claude.

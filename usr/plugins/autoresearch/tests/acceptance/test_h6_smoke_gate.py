@@ -112,7 +112,7 @@ class _ValidPatchCoder:
 
 
 @pytest.mark.acceptance
-def test_h6_smoke_failed_outcome(tmp_path: Path):
+def test_h6_smoke_failed_outcome(tmp_path: Path, mock_passing_baseline):
     """Broken patch → smoke check returns False → outcome == 'smoke_failed'."""
     program_md, baseline_sha = _setup_repo(tmp_path)
     meter = CostMeter(cap_usd=Decimal("5.00"), rates={})
@@ -121,7 +121,8 @@ def test_h6_smoke_failed_outcome(tmp_path: Path):
     async def _run():
         with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path), \
              patch("usr.plugins.autoresearch.worker.loop.smoke_check",
-                   return_value=_SMOKE_FAIL_RESULT):
+                   return_value=_SMOKE_FAIL_RESULT), \
+             mock_passing_baseline:
             return await run_loop(
                 run_id="h6-smoke-001",
                 program_md_path=program_md,
@@ -180,7 +181,7 @@ def test_h6_eval_not_called_on_smoke_fail(tmp_path: Path):
 
 
 @pytest.mark.acceptance
-def test_h6_branch_head_equals_baseline_after_smoke_fail(tmp_path: Path):
+def test_h6_branch_head_equals_baseline_after_smoke_fail(tmp_path: Path, mock_passing_baseline):
     """Branch HEAD must equal baseline_sha after smoke_failed (revert happened)."""
     program_md, baseline_sha = _setup_repo(tmp_path)
     meter = CostMeter(cap_usd=Decimal("5.00"), rates={})
@@ -189,7 +190,8 @@ def test_h6_branch_head_equals_baseline_after_smoke_fail(tmp_path: Path):
     async def _run():
         with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path), \
              patch("usr.plugins.autoresearch.worker.loop.smoke_check",
-                   return_value=_SMOKE_FAIL_RESULT):
+                   return_value=_SMOKE_FAIL_RESULT), \
+             mock_passing_baseline:
             return await run_loop(
                 run_id="h6-revert-001",
                 program_md_path=program_md,
@@ -214,7 +216,7 @@ def test_h6_branch_head_equals_baseline_after_smoke_fail(tmp_path: Path):
 
 
 @pytest.mark.acceptance
-def test_h6_coder_tokens_charged_but_eval_tokens_not(tmp_path: Path):
+def test_h6_coder_tokens_charged_but_eval_tokens_not(tmp_path: Path, mock_passing_baseline):
     """
     After smoke_failed: meter.spent is > 0 (coder was called) and
     run status is completed (smoke_failed is not an abort condition).
@@ -226,7 +228,8 @@ def test_h6_coder_tokens_charged_but_eval_tokens_not(tmp_path: Path):
     async def _run():
         with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path), \
              patch("usr.plugins.autoresearch.worker.loop.smoke_check",
-                   return_value=_SMOKE_FAIL_RESULT):
+                   return_value=_SMOKE_FAIL_RESULT), \
+             mock_passing_baseline:
             return await run_loop(
                 run_id="h6-cost-001",
                 program_md_path=program_md,
