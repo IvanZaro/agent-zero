@@ -1,0 +1,9 @@
+name: autoresearch
+title: Autoresearch
+description: Karpathy-style overnight loop that evolves A0 agent profile prompts against a frozen eval suite.
+version: 0.1.0
+always_enabled: false
+per_project_config: false
+per_agent_config: false
+settings_sections:
+  - developer
