@@ -1,0 +1,173 @@
+<html>
+<head>
+  <title>Autoresearch</title>
+  <script type="module">
+    import { store } from "/plugins/autoresearch/webui/autoresearch-store.js";
+  </script>
+</head>
+<body>
+  <div class="ar-panel" x-data x-create="$store.autoresearch.onMount($el)" x-destroy="$store.autoresearch.cleanup()">
+    <template x-if="$store.autoresearch">
+      <div class="ar-shell">
+
+        <section class="ar-section ar-start">
+          <h3 class="ar-section-title">Start a run</h3>
+          <div class="ar-row">
+            <input
+              type="text"
+              class="ar-input"
+              :value="$store.autoresearch.programMdPath"
+              @input="$store.autoresearch.onProgramMdInput($event.target.value)"
+              placeholder="path/to/program.md"
+              aria-label="Path to program.md"
+              :disabled="$store.autoresearch.isRunning() || $store.autoresearch.starting"
+            />
+            <button
+              type="button"
+              class="btn btn-ok"
+              :disabled="!$store.autoresearch.canStart()"
+              @click="$store.autoresearch.start()"
+            >
+              <span class="material-symbols-outlined" :class="{ spinning: $store.autoresearch.starting }"
+                    x-text="$store.autoresearch.starting ? 'progress_activity' : 'play_arrow'"></span>
+              <span>Start</span>
+            </button>
+          </div>
+          <div class="ar-error" x-show="$store.autoresearch.startError" x-text="$store.autoresearch.startError"></div>
+        </section>
+
+        <section class="ar-section ar-active" x-show="$store.autoresearch.state" style="display:none;">
+          <h3 class="ar-section-title">Active run</h3>
+          <div class="ar-active-grid">
+            <div class="ar-meta">
+              <div class="ar-meta-row">
+                <span class="ar-meta-label">Run ID</span>
+                <span class="ar-meta-val ar-mono" x-text="$store.autoresearch.state?.run_id"></span>
+              </div>
+              <div class="ar-meta-row">
+                <span class="ar-meta-label">Status</span>
+                <span :class="$store.autoresearch.statusBadgeClass($store.autoresearch.state?.status)"
+                      x-text="$store.autoresearch.state?.status"></span>
+              </div>
+              <div class="ar-meta-row">
+                <span class="ar-meta-label">Spend</span>
+                <span class="ar-meta-val" x-text="$store.autoresearch.formatSpend($store.autoresearch.state?.spend_usd)"></span>
+              </div>
+              <div class="ar-meta-row">
+                <span class="ar-meta-label">Experiments</span>
+                <span class="ar-meta-val" x-text="$store.autoresearch.state?.experiments?.length || 0"></span>
+              </div>
+              <div class="ar-meta-row">
+                <span class="ar-meta-label">Baseline SHA</span>
+                <span class="ar-meta-val ar-mono" x-text="$store.autoresearch.shortSha($store.autoresearch.state?.baseline_sha)"></span>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn btn-warning"
+              :disabled="!$store.autoresearch.isRunning() || $store.autoresearch.stopping"
+              @click="$store.autoresearch.stop()"
+            >
+              <span class="material-symbols-outlined" :class="{ spinning: $store.autoresearch.stopping }"
+                    x-text="$store.autoresearch.stopping ? 'progress_activity' : 'stop'"></span>
+              <span>Stop</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="ar-section ar-experiments" x-show="$store.autoresearch.recentExperiments().length" style="display:none;">
+          <h3 class="ar-section-title">Recent experiments</h3>
+          <table class="ar-table">
+            <thead>
+              <tr>
+                <th>n</th>
+                <th>outcome</th>
+                <th>Δtasks</th>
+                <th>spend</th>
+                <th>sha</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="rec in $store.autoresearch.recentExperiments()" :key="rec.n">
+                <tr>
+                  <td x-text="rec.n"></td>
+                  <td><span :class="$store.autoresearch.outcomeBadgeClass(rec.outcome)" x-text="rec.outcome"></span></td>
+                  <td x-text="$store.autoresearch.passDelta(rec)"></td>
+                  <td x-text="$store.autoresearch.formatSpend(rec.spend_usd)"></td>
+                  <td class="ar-mono" x-text="$store.autoresearch.shortSha(rec.sha)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="ar-section ar-trace" x-show="$store.autoresearch.isRunning()" style="display:none;">
+          <h3 class="ar-section-title">
+            Live trace
+            <span class="ar-trace-meta" x-show="$store.autoresearch.traceExpN" x-text="'exp-' + String($store.autoresearch.traceExpN).padStart(3, '0')"></span>
+          </h3>
+          <pre class="ar-trace-log"><template x-for="(line, idx) in $store.autoresearch.trace" :key="idx"><span class="ar-trace-line" x-text="line"></span></template></pre>
+        </section>
+
+        <section class="ar-section ar-past">
+          <button
+            type="button"
+            class="ar-past-toggle"
+            @click="$store.autoresearch.togglePastRuns()"
+            :aria-expanded="$store.autoresearch.pastRunsExpanded.toString()"
+          >
+            <span class="material-symbols-outlined" x-text="$store.autoresearch.pastRunsExpanded ? 'expand_less' : 'expand_more'"></span>
+            <span>Past runs</span>
+            <span x-show="$store.autoresearch.pastRunsLoading" class="material-symbols-outlined spinning">progress_activity</span>
+          </button>
+          <div x-show="$store.autoresearch.pastRunsExpanded" class="ar-past-list" style="display:none;">
+            <template x-if="!$store.autoresearch.pastRuns.length && !$store.autoresearch.pastRunsLoading">
+              <div class="ar-past-empty">No past runs.</div>
+            </template>
+            <template x-for="run in $store.autoresearch.pastRuns" :key="run.run_id">
+              <div class="ar-past-row">
+                <span class="ar-mono" x-text="run.run_id"></span>
+                <span :class="$store.autoresearch.statusBadgeClass(run.status)" x-text="run.status"></span>
+                <span x-text="run.experiments + ' exp'"></span>
+                <span x-text="$store.autoresearch.formatSpend(run.spend_usd)"></span>
+              </div>
+            </template>
+          </div>
+        </section>
+      </div>
+    </template>
+  </div>
+
+  <style>
+    .ar-panel { padding: 12px; max-width: 920px; }
+    .ar-shell { display: flex; flex-direction: column; gap: 14px; }
+    .ar-section { padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-panel, transparent); }
+    .ar-section-title { margin: 0 0 8px 0; font-size: 0.92rem; font-weight: 700; color: var(--color-text); }
+    .ar-row { display: flex; gap: 8px; align-items: center; }
+    .ar-input { flex: 1 1 auto; min-width: 0; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-input); color: var(--color-text); font-family: monospace; }
+    .ar-error { margin-top: 8px; padding: 8px; border-radius: 6px; background: color-mix(in srgb, #be123c 12%, var(--color-background)); color: #fca5a5; font-size: 0.8rem; }
+    .ar-active-grid { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+    .ar-meta { display: flex; flex-direction: column; gap: 4px; font-size: 0.84rem; }
+    .ar-meta-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; }
+    .ar-meta-label { color: var(--color-text-secondary); }
+    .ar-meta-val { color: var(--color-text); }
+    .ar-mono { font-family: monospace; font-size: 0.82rem; }
+    .ar-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    .ar-table th, .ar-table td { padding: 5px 8px; border-bottom: 1px solid var(--color-border); text-align: left; }
+    .ar-trace-log { max-height: 280px; overflow: auto; padding: 8px; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-family: monospace; font-size: 0.78rem; line-height: 1.4; white-space: pre-wrap; word-break: break-word; margin: 0; }
+    .ar-trace-line { display: block; }
+    .ar-trace-meta { margin-left: 8px; font-weight: 400; color: var(--color-text-secondary); font-size: 0.78rem; }
+    .ar-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; }
+    .ar-badge-success { background: color-mix(in srgb, #16a34a 22%, transparent); color: #16a34a; }
+    .ar-badge-neutral { background: color-mix(in srgb, var(--color-text-secondary) 18%, transparent); color: var(--color-text-secondary); }
+    .ar-badge-warn { background: color-mix(in srgb, #d97706 22%, transparent); color: #d97706; }
+    .ar-badge-info { background: color-mix(in srgb, #2563eb 22%, transparent); color: #2563eb; }
+    .ar-past-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 0; background: transparent; color: var(--color-text); cursor: pointer; font-weight: 600; }
+    .ar-past-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+    .ar-past-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; padding: 4px 8px; border: 1px solid var(--color-border); border-radius: 4px; font-size: 0.82rem; }
+    .ar-past-empty { color: var(--color-text-secondary); font-size: 0.82rem; }
+    .spinning { animation: ar-spin 0.8s linear infinite; transform-origin: center; display: inline-block; }
+    @keyframes ar-spin { to { transform: rotate(360deg); } }
+  </style>
+</body>
+</html>

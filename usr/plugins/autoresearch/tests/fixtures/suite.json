@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "fx-001",
+      "input": "Given a 12-period momentum signal of [0.02, 0.03, 0.05], should we go long or short?",
+      "assert_substring": "long"
+    }
+  ]
+}

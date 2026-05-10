@@ -40,6 +40,15 @@ usr/**
 usr/**/*
 # But allow .gitkeep files
 !usr/**/.gitkeep
+# Track the autoresearch plugin (code + suites), but not its bytecode or runtime artifacts.
+# Need to re-allow the parent directories explicitly because `usr/**/*` excludes them.
+!usr/plugins/
+!usr/plugins/autoresearch/
+!usr/plugins/autoresearch/**
+usr/plugins/autoresearch/**/__pycache__/
+usr/plugins/autoresearch/**/*.pyc
+# Runtime artifacts (per-run experiment outputs) stay ignored
+usr/autoresearch/
 
 
 # Local dev (Phase A) — never commit
@@ -62,3 +71,4 @@ agent_history.gif
 
 .agent/**
 .claude/**
+.coverage
