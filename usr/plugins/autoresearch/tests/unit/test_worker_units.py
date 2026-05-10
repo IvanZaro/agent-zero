@@ -425,6 +425,50 @@ class TestPathSafetySymlink:
 
 
 # ---------------------------------------------------------------------------
+# worker/loop.py — _resolve_eval_model
+# ---------------------------------------------------------------------------
+
+from usr.plugins.autoresearch.worker._program_md import ProgramMd
+from usr.plugins.autoresearch.worker.loop import _resolve_eval_model
+
+
+def _minimal_cfg(**overrides) -> ProgramMd:
+    defaults = {"profile": "trader", "prompt_file": "prompts/system.md"}
+    defaults.update(overrides)
+    return ProgramMd(**defaults)
+
+
+class TestResolveEvalModel:
+    def test_uses_program_md_eval_model_when_set(self) -> None:
+        cfg = _minimal_cfg(eval_model="openrouter/anthropic/claude-haiku-4-5")
+        assert _resolve_eval_model(cfg) == "openrouter/anthropic/claude-haiku-4-5"
+
+    def test_uses_env_var_when_program_md_unset(self) -> None:
+        cfg = _minimal_cfg()
+        with patch.dict("os.environ", {"AUTORESEARCH_EVAL_MODEL": "openrouter/x/cheap-model"}):
+            assert _resolve_eval_model(cfg) == "openrouter/x/cheap-model"
+
+    def test_uses_default_when_neither_set(self) -> None:
+        cfg = _minimal_cfg()
+        env_without_eval = {k: v for k, v in __import__("os").environ.items()
+                            if k != "AUTORESEARCH_EVAL_MODEL"}
+        with patch.dict("os.environ", env_without_eval, clear=True):
+            assert _resolve_eval_model(cfg) == "openrouter/openai/gpt-4o-mini"
+
+    def test_does_NOT_fall_back_to_coder_model(self) -> None:
+        # Regression guard: eval_model must never inherit coder_model.
+        cfg = _minimal_cfg(coder_model="openrouter/anthropic/claude-sonnet-4-6")
+        env_without_eval = {k: v for k, v in __import__("os").environ.items()
+                            if k != "AUTORESEARCH_EVAL_MODEL"}
+        with patch.dict("os.environ", env_without_eval, clear=True):
+            result = _resolve_eval_model(cfg)
+        assert result != cfg.coder_model, (
+            f"_resolve_eval_model must not fall back to coder_model ({cfg.coder_model!r})"
+        )
+        assert result == "openrouter/openai/gpt-4o-mini"
+
+
+# ---------------------------------------------------------------------------
 # worker/loop.py — uncovered branches
 # ---------------------------------------------------------------------------
 

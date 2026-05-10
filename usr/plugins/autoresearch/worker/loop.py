@@ -43,6 +43,16 @@ class EvalUnusableError(Exception):
         super().__init__(f"All eval tasks crashed in exp {record.n}")
 
 
+class BaselineUnusableError(Exception):
+    """Raised when the baseline eval is structurally broken (all tasks errored)."""
+
+    def __init__(self, baseline: "EvalResult") -> None:
+        self.baseline = baseline
+        super().__init__(
+            f"Baseline eval is structurally broken: 0/{baseline.total} passed, all tasks errored"
+        )
+
+
 @dataclass(frozen=True)
 class RunContext:
     cfg: ProgramMd
@@ -98,7 +108,14 @@ async def _run_baseline_eval(
 
 def _resolve_eval_model(cfg: ProgramMd) -> str:
     import os
-    return cfg.coder_model or os.environ.get("AUTORESEARCH_CODER_MODEL", "openrouter/openai/gpt-4o-mini")
+    if cfg.eval_model:
+        return cfg.eval_model
+    env_eval = os.environ.get("AUTORESEARCH_EVAL_MODEL")
+    if env_eval:
+        return env_eval
+    # Final fallback: a cheap, stable model. Using gpt-4o-mini matches
+    # the previous fallback so unconfigured runs don't change behaviour.
+    return "openrouter/openai/gpt-4o-mini"
 
 
 async def run_loop(
@@ -172,6 +189,31 @@ async def run_loop(
         run_dir / "baseline_eval.json",
         json.dumps(asdict(baseline_eval), indent=2),
     )
+
+    # E5b: baseline structurally broken — abort before any experiments.
+    # baseline_eval.json is already written above; preserve it for diagnostics.
+    if (
+        baseline_eval.total > 0
+        and baseline_eval.passed == 0
+        and all(t.error is not None for t in baseline_eval.per_task)
+    ):
+        abort_state = RunState(
+            run_id=run_id,
+            status="aborted",
+            experiments=[],
+            spend_usd=Decimal("0"),
+            started_at=datetime.now(tz=timezone.utc),
+            baseline_sha="",
+            _run_dir=run_dir,
+        )
+        abort_state.save()
+        log.error(
+            "Baseline eval is structurally broken: 0/%d passed, all tasks errored. "
+            "Aborting run before any experiments. First task error: %s",
+            baseline_eval.total,
+            baseline_eval.per_task[0].error,
+        )
+        return abort_state
 
     # --- Git branch ---
     baseline_sha = start_run_branch(run_id, repo_root)

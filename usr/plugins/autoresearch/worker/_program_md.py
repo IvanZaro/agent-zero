@@ -20,6 +20,7 @@ _KNOWN_FIELDS = {
     "prompt_file",
     "backend",
     "coder_model",
+    "eval_model",
     "judge_model",
     "eval_suite",
     "max_experiments",
@@ -33,6 +34,7 @@ class ProgramMd(BaseModel):
     prompt_file: str
     backend: Literal["litellm", "claude_code"] = "litellm"
     coder_model: str | None = None
+    eval_model: str | None = None
     judge_model: str | None = None
     eval_suite: str = "tests/fixtures/suite.json"
     max_experiments: int = 100

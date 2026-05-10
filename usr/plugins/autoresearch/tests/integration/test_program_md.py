@@ -158,3 +158,25 @@ class TestProgramMdModel:
         cfg, _ = parse_program_md(p)
         assert cfg.coder_model is None
         assert cfg.judge_model is None
+
+
+class TestEvalModelField:
+    def test_eval_model_field_parsed_when_present(self, tmp_path: Path) -> None:
+        p = _write_program_md(
+            tmp_path,
+            (
+                "profile: trader\n"
+                "prompt_file: prompts/system.md\n"
+                "eval_model: openrouter/anthropic/claude-haiku-4-5\n"
+            ),
+        )
+        cfg, _ = parse_program_md(p)
+        assert cfg.eval_model == "openrouter/anthropic/claude-haiku-4-5"
+
+    def test_eval_model_defaults_to_none_when_absent(self, tmp_path: Path) -> None:
+        p = _write_program_md(
+            tmp_path,
+            "profile: trader\nprompt_file: prompts/system.md\n",
+        )
+        cfg, _ = parse_program_md(p)
+        assert cfg.eval_model is None

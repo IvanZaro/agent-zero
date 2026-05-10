@@ -386,6 +386,55 @@ async def test_coder_failure_marks_coder_failed_and_advances(tmp_path: Path) -> 
 
 
 # ---------------------------------------------------------------------------
+# E5b: baseline eval structurally broken → abort before any experiments
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_e5b_baseline_unusable_aborts_run_before_experiments(tmp_path: Path) -> None:
+    program_md, _ = _setup_repo(tmp_path, max_experiments=3)
+    runs_root = tmp_path / "usr" / "autoresearch" / "runs"
+
+    class NeverCoder:
+        name = "never"
+
+        async def propose_edit(self, program_md: str, file_text: str, recent_history: list) -> None:
+            raise AssertionError("propose_edit must not be called when baseline is unusable")
+
+        def report_cost(self) -> Decimal:
+            return Decimal("0")
+
+    all_errored_baseline = EvalResult(
+        passed=0,
+        total=1,
+        total_tokens=0,
+        per_task=[TaskOutcome(task_id="t-001", passed=False, tokens=0, output=None, error="auth failed")],
+    )
+
+    eval_call_count = 0
+
+    async def mock_baseline_eval(*_args, **_kw) -> EvalResult:
+        nonlocal eval_call_count
+        eval_call_count += 1
+        return all_errored_baseline
+
+    with patch("usr.plugins.autoresearch.worker.loop._run_baseline_eval", new=mock_baseline_eval):
+        with patch("usr.plugins.autoresearch.worker.loop._find_repo_root", return_value=tmp_path):
+            state = await run_loop(
+                run_id="e5b-test-001",
+                program_md_path=program_md,
+                max_experiments_override=3,
+                coder=NeverCoder(),
+                cost_meter=CostMeter(cap_usd=Decimal("5.00"), rates={}),
+                runs_root=runs_root,
+            )
+
+    assert state.status == "aborted"
+    assert state.experiments == []
+    assert eval_call_count == 1, "baseline eval should be called exactly once"
+    assert (runs_root / "e5b-test-001" / "baseline_eval.json").exists()
+
+
+# ---------------------------------------------------------------------------
 # E8: SIGTERM handler registered with correct baseline sha (POSIX only)
 # ---------------------------------------------------------------------------
 

@@ -4,6 +4,7 @@ prompt_file: prompts/agent.system.main.specifics.md
 backend: litellm
 coder_model: openrouter/anthropic/claude-sonnet-4-6
 judge_model: openrouter/anthropic/claude-haiku-4-5
+eval_model: openrouter/anthropic/claude-haiku-4-5
 eval_suite: usr/plugins/autoresearch/suites/trading-v1/suite.json
 max_experiments: 100
 cost_cap_usd: "5.00"

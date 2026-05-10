@@ -88,7 +88,28 @@ A new A0 plugin runs Karpathy-style overnight experiment loops to evolve A0 agen
 
 ---
 
-## 5. Module Layout
+## 5. program.md Schema
+
+```yaml
+---
+profile: <agent-profile-name>           # required
+prompt_file: <relative-path-to-md>      # required; relative to agents/<profile>/
+backend: litellm                        # litellm | claude_code
+coder_model: openrouter/...             # optional; backend-specific model string
+eval_model: openrouter/...              # optional; falls back to AUTORESEARCH_EVAL_MODEL env, then `openrouter/openai/gpt-4o-mini`
+judge_model: openrouter/...             # optional; skip judge if absent
+eval_suite: tests/fixtures/suite.json   # path to eval suite JSON
+max_experiments: 100
+cost_cap_usd: "5.00"
+parallelism: 4
+---
+```
+
+**`eval_model` note:** Kept intentionally separate from `coder_model` — eval tasks should use a cheap, stable, reproducible model independent of the coder. Setting `eval_model` in program.md overrides the env var. The env var `AUTORESEARCH_EVAL_MODEL` overrides the hardcoded default.
+
+---
+
+## 5b. Module Layout
 
 ```
 usr/plugins/autoresearch/
@@ -145,7 +166,8 @@ usr/autoresearch/runs/<run-id>/
 Highlights:
 - **E2** patch `old_text` not unique → mark patch_failed, advance.
 - **E3** smoke fails → revert + advance (does NOT spend eval budget).
-- **E5** all 20 eval tasks crash → abort run (structural break).
+- **E5** all 20 eval tasks crash in a per-experiment eval → abort run (structural break).
+- **E5b** baseline eval structurally broken (all tasks errored) → abort run before any experiments; preserves `baseline_eval.json` for diagnostics.
 - **E7** cost cap hit → revert in-flight changes, status `cost_capped`, exit clean.
 - **E8** SIGTERM → git reset --hard → status `stopped`.
 - **E11** suite drift mid-run → abort (preserves H2 determinism).
